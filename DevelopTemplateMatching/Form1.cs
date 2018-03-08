@@ -22,145 +22,95 @@ namespace DevelopTemplateMatching
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            Source();
+            string image_to_analyze = "C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/test.png";
+            Dictionary<int, List<Point>> locations = Source(image_to_analyze);
         }
 
-        private void Source()
+        private Dictionary<int, List<Point>> Source(string img_location)
         {
-            string templ_win = "Number Image";
-            string img_win = "Test Image";
-            string result_win = "Result Image";
-            CvInvoke.NamedWindow(templ_win); // creates window for template number
-            CvInvoke.NamedWindow(img_win); // creates window for real image
-            CvInvoke.NamedWindow(result_win);
+            // create dictionary of value to template locations
+            Dictionary<int, string> template_locations = new Dictionary<int, string>();
+            template_locations.Add(9, @"C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/9.png");
+            template_locations.Add(10, @"C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/10.png");
+            template_locations.Add(11, @"C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/11.png");
+            template_locations.Add(201, @"C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/201.png");
+            template_locations.Add(207, @"C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/207.png");
+            template_locations.Add(208, @"C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/208.png");
 
-            // load mats
-            Mat tmpl_img = new Mat("C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/test_match3.png");
-            Mat img = new Mat("C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/test.png");
-            Mat result_img = new Mat();
+            // result dict
+            Dictionary<int, List<Point>> all_matches = new Dictionary<int, List<Point>>();
 
-            // template matching
-            //MatchingMethod(img, tmpl_img, result_img, TemplateMatchingType.Ccorr, img_win, result_win, templ_win);
-            Realtime_Matching(img_win, result_win, templ_win);
+            foreach (int key in template_locations.Keys)
+            {
+                // template matching
+                List<Point> matches = Realtime_Matching(template_locations[key], img_location);
+                all_matches.Add(key, matches);
+            }
 
+            // create windows to output image
+            string img_win = "Outlined Image";
+            CvInvoke.NamedWindow(img_win);
+
+            // draw boxes around matches
+            Image<Bgr, byte> display_img = new Image<Bgr, byte>(img_location);
+            Random rand = new Random(); // random number generator to get color
+            foreach (int key in all_matches.Keys)
+            {
+                Image<Bgr, byte> templ_img = new Image<Bgr, byte>(template_locations[key]);                
+                List<Point> matches = all_matches[key];
+                // get a random color to draw rectange
+                int c1 = rand.Next(0, 255);
+                int c2 = rand.Next(0, 255);
+                int c3 = rand.Next(0, 255);
+
+                foreach (Point match in matches)
+                {
+                    Rectangle match_rect = new Rectangle(match, templ_img.Size);
+                    CvInvoke.Rectangle(display_img, match_rect, new MCvScalar(c1, c2, c3), 2, LineType.FourConnected, 0);
+                }
+            }
+
+            // show on screen
+            CvInvoke.Imshow(img_win, display_img);
             CvInvoke.WaitKey(0);
             CvInvoke.DestroyAllWindows();
+
+            return all_matches;
         }
 
-        private void Sample()
+        private List<Point> Realtime_Matching(string template_location, string image_location)
         {
-            String win1 = "Test Window"; //The name of the window
-            CvInvoke.NamedWindow(win1); //Create the window using the specific name
-
-            Mat img = new Mat(200, 400, DepthType.Cv8U, 3); //Create a 3 channel image of 400x200
-            img.SetTo(new Bgr(255, 0, 0).MCvScalar); // set it to Blue color
-
-            //Draw "Hello, world." on the image using the specific font
-            CvInvoke.PutText(
-               img,
-               "Hello, world",
-               new System.Drawing.Point(10, 80),
-               FontFace.HersheyComplex,
-               1.0,
-               new Bgr(0, 255, 0).MCvScalar);
-
-
-            CvInvoke.Imshow(win1, img); //Show the image
-            CvInvoke.WaitKey(0);  //Wait for the key pressing event
-            CvInvoke.DestroyWindow(win1); //Destroy the window if key is pressed
-        }
-
-        private void MatchingMethod(Mat img, Mat templ, Mat result, TemplateMatchingType match_method, string image_window, string result_window, string temp_window)
-        {
-            // Source image to display
-            Mat img_display = new Mat();
-            img.CopyTo(img_display);
-
-            // Create the result matrix
-            int result_cols = img.Cols - templ.Cols + 1;
-            int result_rows = img.Rows - templ.Rows + 1;
-
-            result.Create(result_rows, result_cols, DepthType.Cv32F, img.NumberOfChannels);
-
-            // Do the Matching and Normalize
-            CvInvoke.MatchTemplate(img, templ, result, match_method);
-            CvInvoke.Normalize(result, result, 0, 1, NormType.MinMax, DepthType.Default/*, new Mat()*/);
-
-            // Localizing the best match with minMaxLoc
-            double minVal = 0;
-            double maxVal = 0;
-            Point minLoc = new Point();
-            Point maxLoc = new Point();
-            Point matchLoc = new Point();
-
-            CvInvoke.MinMaxLoc(result, ref minVal, ref maxVal, ref minLoc, ref maxLoc/*, new Mat()*/);
-
-            // For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
-            if (match_method == TemplateMatchingType.Sqdiff || match_method == TemplateMatchingType.SqdiffNormed)
-            {
-                matchLoc = minLoc;
-            }
-            else
-            {
-                matchLoc = maxLoc;
-            }
-
-            // Show me what you got
-            Rectangle rect = new Rectangle(matchLoc.X, matchLoc.Y, templ.Cols, templ.Rows);
-            CvInvoke.Rectangle(img_display, rect, new MCvScalar(0), 2, LineType.EightConnected, 0);
-            CvInvoke.Rectangle(result, rect, new MCvScalar(0), 2, LineType.EightConnected, 0);
-
-            CvInvoke.Imshow(image_window, img);
-            CvInvoke.Imshow(result_window, result);
-            CvInvoke.Imshow(temp_window, templ);
-
-            return;
-        }
-
-        private int Realtime_Matching(string image_window, string result_window, string temp_window)
-        {
-            Image<Bgr, byte> templImage = new Image<Bgr, byte>(@"C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/9_crop.png");
-            Image<Bgr, byte> testImage = new Image<Bgr, byte>(@"C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/test.png");
+            Image<Bgr, byte> templImage = new Image<Bgr, byte>(template_location);
+            Image<Bgr, byte> testImage = new Image<Bgr, byte>(image_location);
             Image<Gray, float> result;
-            Image<Bgr, byte> img_display = new Image<Bgr, byte>(@"C:/Users/Bruce Huffa/source/repos/DevelopTemplateMatching/DevelopTemplateMatching/images/test.png");
 
             using (result = testImage.MatchTemplate(templImage, Emgu.CV.CvEnum.TemplateMatchingType.CcorrNormed))
             {
-                double[] minValues;
-                double[] maxValues;
-                Point[] minLocations;
-                Point[] maxLocations;
+                List<Point> matches = Get_Max_Above_Threshold(result);
 
-                result.MinMax(out minValues, out maxValues, out minLocations, out maxLocations);
-
-                if (maxValues[0] > 0.8)
-                {
-                    Rectangle match = new Rectangle(maxLocations[0], templImage.Size);
-
-                    CvInvoke.Rectangle(img_display, match, new MCvScalar(0), 2, LineType.EightConnected, 0);
-
-                    MessageBox.Show(string.Join(", ",ImageToByte(result.Bitmap)));
-                    result.ThresholdToZero(new Gray(0.999));
-
-                    CvInvoke.Imshow(result_window, result);
-                    CvInvoke.Imshow(image_window, img_display);
-                    CvInvoke.Imshow(temp_window, templImage);
-
-                    return 1;
-                }
-                else
-                {
-                    MessageBox.Show("Match Not Detecting");
-
-                    return 0;
-                }
+                return matches;
             }
         }
 
-        public static byte[] ImageToByte(Image img)
+        public static List<Point> Get_Max_Above_Threshold(Image<Gray, float> img)
         {
-            ImageConverter converter = new ImageConverter();
-            return (byte[])converter.ConvertTo(img, typeof(byte[]));
+            List<Point> points = new List<Point>();
+
+            double[] minValues;
+            double[] maxValues;
+            Point[] minLocations;
+            Point[] maxLocations;
+
+            while (true)
+            {
+                img.MinMax(out minValues, out maxValues, out minLocations, out maxLocations);
+                if (maxValues[0] < 0.999)
+                    break;
+                points.Add(maxLocations[0]);
+                img.Data[maxLocations[0].Y, maxLocations[0].X, 0] = 0;
+            }
+
+            return points;
         }
     }
 }
